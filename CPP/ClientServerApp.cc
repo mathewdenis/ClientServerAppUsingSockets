@@ -15,10 +15,14 @@
 #include <string>
 
 #define BUFFERLENGTH 10000
-#define SERVERPORT 55556
+#define SERVERPORTJAVA 55555
+#define SERVERPORTCPP 55556
 #define FILENAME "Data.txt"
 
 using namespace std;
+
+//1->CPP, 2->JAVA
+int serverChoice;
 
 void* runServer(void* arg)
 {
@@ -33,7 +37,7 @@ void* runServer(void* arg)
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(SERVERPORT); 
+    serv_addr.sin_port = htons(SERVERPORTCPP); 
 
     bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
 
@@ -74,6 +78,8 @@ void* runServer(void* arg)
             }
         }
 
+        cout << "GOing in while"<<endl;
+
         //Write into file uptill no data left
         while((readCharacters = read(connfd, receiveBuffer, sizeof(receiveBuffer) - 1)) > 0)
         {
@@ -96,24 +102,38 @@ void* runClient(void* arg)
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        printf("\n Error : Could not create socket \n");
+        printf("Error : Unable to create socket\n");
         return NULL;
     } 
 
     memset(&serv_addr, '0', sizeof(serv_addr)); 
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SERVERPORT); 
+
+    //Select the port on the basis of server specified by the user
+    if(serverChoice == 1)
+    {
+        serv_addr.sin_port = htons(SERVERPORTCPP); 
+    }
+    else if(serverChoice == 2)
+    {
+        serv_addr.sin_port = htons(SERVERPORTJAVA);
+    }
+    else
+    {
+        cout << "Error: Invalid server selected" << endl;
+        return NULL;
+    }
 
     if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)
     {
-        printf("\n inet_pton error occured\n");
+        printf("Error: Unable to set the client socket address\n");
         return NULL;
     } 
 
     if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-       printf("\n Error : Connect Failed \n");
+       printf("Error : Connection with the server Failed\n");
        return NULL;
     } 
 
@@ -132,7 +152,6 @@ void* runClient(void* arg)
         memset(sendBuffer, '0',sizeof(sendBuffer));
         strcpy(sendBuffer, line.c_str());
         write(sockfd, sendBuffer, strlen(sendBuffer)); 
-        //write(sockfd, "\n", 1);
     }
 
     fileReader.close();
@@ -144,6 +163,13 @@ void* runClient(void* arg)
 int main()
 {
     pthread_t serverThread, clientThread;
+
+    //Ask the user to select the server on which he would like to upload the file
+    cout << "Select the server to send the file:\n1. CPP\n2. JAVA" << endl;
+    int choice;
+    scanf("%d", &choice);
+
+    serverChoice = choice;
     
     int returnVal = pthread_create( &serverThread, NULL, runServer, NULL);
     if(returnVal)
